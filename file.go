@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -131,7 +130,6 @@ func (f *frame) Read(raw []byte) ([]byte, error) {
 	for i := 0; i < nchunks; i++ {
 		var c chunk
 		raw, _ = c.Read(raw)
-		fmt.Printf("chunk 0x%x %d\n", c.typ, len(c.raw))
 		f.chunks[i] = c
 	}
 
