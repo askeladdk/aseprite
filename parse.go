@@ -178,9 +178,10 @@ func (f *file) initCels() error {
 }
 
 func parseTag(t *Tag, raw []byte) []byte {
-	t.Lo = binary.LittleEndian.Uint16(raw)
-	t.Hi = binary.LittleEndian.Uint16(raw[2:])
-	t.Flags = uint32(raw[4])
+	t.Lo = int(binary.LittleEndian.Uint16(raw))
+	t.Hi = int(binary.LittleEndian.Uint16(raw[2:]))
+	t.Flags = int(raw[4])
+	t.Repeat = int(binary.LittleEndian.Uint16(raw[5:]))
 	t.Name = parseString(raw[17:])
 	return raw[19+len(t.Name):]
 }

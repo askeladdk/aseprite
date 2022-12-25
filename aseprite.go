@@ -20,6 +20,7 @@ const (
 	Forward LoopDirection = 0
 	Reverse
 	PingPong
+	PingPongReverse
 )
 
 // Tag is an animation tag.
@@ -28,13 +29,16 @@ type Tag struct {
 	Name string
 
 	// Flags is a bitset of flags.
-	Flags uint32
+	Flags int
+
+	// Repeat specifies how many times to repeat the animation.
+	Repeat int
 
 	// Lo is the first frame in the animation.
-	Lo uint16
+	Lo int
 
 	// Hi is the last frame in the animation.
-	Hi uint16
+	Hi int
 }
 
 // LoopDirection returns the looping direction of the animation.
