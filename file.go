@@ -212,7 +212,12 @@ func (f *file) ReadFrom(r io.Reader) (int64, error) {
 func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	var atlasr image.Rectangle
 	atlasr, framesr = makeAtlasFrames(len(f.frames), f.framew, f.frameh)
-	atlas = image.NewRGBA(atlasr)
+
+	if f.bpp == 16 {
+		atlas = image.NewGray16(atlasr)
+	} else {
+		atlas = image.NewRGBA(atlasr)
+	}
 
 	framebounds := image.Rect(0, 0, f.framew, f.frameh)
 

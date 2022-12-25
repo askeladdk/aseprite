@@ -108,7 +108,9 @@ func (spr *Aseprite) ReadFrom(r io.Reader) (n int64, err error) {
 
 	if err = f.initLayers(); err != nil {
 		return
-	} else if err = f.initCels(); err != nil {
+	}
+
+	if err = f.initCels(); err != nil {
 		return
 	}
 
