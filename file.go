@@ -16,17 +16,9 @@ import (
 
 var errInvalidMagic = errors.New("invalid magic number")
 
-var opacityMasks = func() (masks []image.Uniform) {
-	masks = make([]image.Uniform, 256)
-	for i := range masks {
-		masks[i] = image.Uniform{color.Alpha{byte(i)}}
-	}
-	return masks
-}()
-
 type cel struct {
 	image image.Image
-	mask  image.Image
+	mask  image.Uniform
 	data  []byte
 }
 
@@ -38,7 +30,7 @@ func makeCelImage8(f *file, bounds image.Rectangle, opacity byte, pix []byte) ce
 		Palette: f.palette,
 	}
 
-	mask := &opacityMasks[opacity]
+	mask := image.Uniform{color.Alpha{opacity}}
 
 	return cel{&img, mask, nil}
 }
@@ -50,7 +42,7 @@ func makeCelImage16(f *file, bounds image.Rectangle, opacity byte, pix []byte) c
 		Rect:   bounds,
 	}
 
-	mask := &opacityMasks[opacity]
+	mask := image.Uniform{color.Alpha{opacity}}
 
 	return cel{&img, mask, nil}
 }
@@ -62,7 +54,7 @@ func makeCelImage32(f *file, bounds image.Rectangle, opacity byte, pix []byte) c
 		Rect:   bounds,
 	}
 
-	mask := &opacityMasks[opacity]
+	mask := image.Uniform{color.Alpha{opacity}}
 
 	return cel{&img, mask, nil}
 }
@@ -244,7 +236,7 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 				sp = image.Point{}
 			}
 
-			draw.DrawMask(dst, sr, src, sp, c.mask, image.Point{}, draw.Over)
+			draw.DrawMask(dst, sr, src, sp, &c.mask, image.Point{}, draw.Over)
 		}
 
 		draw.Draw(atlas, framesr[i], dst, image.Point{}, draw.Src)
