@@ -1,9 +1,11 @@
-// Package aseprite parses Aseprite sprite files.
+// Package aseprite implements a decoder for Aseprite sprite files.
 //
 // Layers are flattened, blending modes are applied,
 // and frames are arranged on a single texture atlas.
 // Invisible and reference layers are ignored.
 // Tilesets and external files are not supported.
+//
+// Aseprite file format spec: https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md
 package aseprite
 
 import (
@@ -83,9 +85,9 @@ type Slice struct {
 
 // Aseprite holds the results of a parsed .ase or .aseprite file.
 type Aseprite struct {
-	// Atlas contains all frame images in a single image.
+	// Image contains all frame images in a single image.
 	// Frame bounds specify where the frame images are located.
-	Atlas image.Image
+	image.Image
 
 	// Frames lists all frames that make up the sprite.
 	Frames []Frame
@@ -100,37 +102,29 @@ type Aseprite struct {
 	LayerData [][]byte
 }
 
-// ReadFrom reads and parses an Aseprite file from a Reader.
-func (spr *Aseprite) ReadFrom(r io.Reader) (n int64, err error) {
+func (spr *Aseprite) readFrom(r io.Reader) error {
 	var f file
 
-	if n, err = f.ReadFrom(r); err != nil {
-		return
+	if _, err := f.ReadFrom(r); err != nil {
+		return err
 	}
 
 	f.initPalette()
 
-	if err = f.initLayers(); err != nil {
-		return
+	if err := f.initLayers(); err != nil {
+		return err
 	}
 
-	if err = f.initCels(); err != nil {
-		return
+	if err := f.initCels(); err != nil {
+		return err
 	}
 
 	var framesr []image.Rectangle
-	spr.Atlas, framesr = f.buildAtlas()
+	spr.Image, framesr = f.buildAtlas()
 	userdata := f.buildUserData()
 	spr.Frames, userdata = f.buildFrames(framesr, userdata)
 	spr.LayerData = f.buildLayerData(userdata)
 	spr.Tags = f.buildTags()
 	spr.Slices = f.buildSlices()
-	return
-}
-
-// Read reads and parses an Aseprite file from the Reader.
-func Read(r io.Reader) (Aseprite, error) {
-	var spr Aseprite
-	_, err := spr.ReadFrom(r)
-	return spr, err
+	return nil
 }

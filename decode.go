@@ -9,24 +9,12 @@ import (
 
 // Decode reads a Aseprite image from r and returns it as an image.Image.
 func Decode(r io.Reader) (image.Image, error) {
-	var f file
-
-	if _, err := f.ReadFrom(r); err != nil {
+	var spr Aseprite
+	if err := spr.readFrom(r); err != nil {
 		return nil, err
 	}
 
-	f.initPalette()
-
-	if err := f.initLayers(); err != nil {
-		return nil, err
-	}
-
-	if err := f.initCels(); err != nil {
-		return nil, err
-	}
-
-	atlas, _ := f.buildAtlas()
-	return atlas, nil
+	return &spr, nil
 }
 
 // DecodeConfig returns the color model and dimensions of an Aseprite image

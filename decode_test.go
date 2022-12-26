@@ -48,6 +48,10 @@ func TestDecode(t *testing.T) {
 				t.Fatal(imgformat)
 			}
 
+			if _, ok := img.(*Aseprite); !ok {
+				t.Fatal()
+			}
+
 			out, err := os.Create(tt.Outfile)
 			assertNoError(t, err)
 			assertNoError(t, png.Encode(out, img))
