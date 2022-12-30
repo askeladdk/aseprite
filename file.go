@@ -205,9 +205,12 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	var atlasr image.Rectangle
 	atlasr, framesr = makeAtlasFrames(len(f.frames), f.framew, f.frameh)
 
-	if f.bpp == 16 {
+	switch f.bpp {
+	case 8:
+		atlas = image.NewPaletted(atlasr, f.palette)
+	case 16:
 		atlas = image.NewGray16(atlasr)
-	} else {
+	default:
 		atlas = image.NewRGBA(atlasr)
 	}
 
