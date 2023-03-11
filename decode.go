@@ -1,14 +1,13 @@
 package aseprite
 
 import (
-	"encoding/binary"
 	"image"
 	"image/color"
 	"io"
 )
 
-// Decode reads a Aseprite image from r and returns it as an image.Image.
-func Decode(r io.Reader) (image.Image, error) {
+// DecodeAseprite decodes an Aseprite image from r.
+func DecodeAseprite(r io.Reader) (*Aseprite, error) {
 	var spr Aseprite
 	if err := spr.readFrom(r); err != nil {
 		return nil, err
@@ -17,38 +16,41 @@ func Decode(r io.Reader) (image.Image, error) {
 	return &spr, nil
 }
 
+// Decode decodes an Aseprite image from r and returns it as an image.Image.
+func Decode(r io.Reader) (image.Image, error) {
+	return DecodeAseprite(r)
+}
+
 // DecodeConfig returns the color model and dimensions of an Aseprite image
 // without decoding the entire image.
 func DecodeConfig(r io.Reader) (image.Config, error) {
-	var raw [14]byte
+	var f file
 
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	if _, err := f.ReadFrom(r); err != nil {
 		return image.Config{}, err
 	}
 
-	if magic := binary.LittleEndian.Uint16(raw[4:]); magic != 0xA5E0 {
-		return image.Config{}, errInvalidMagic
-	}
-
-	nframes := int(binary.LittleEndian.Uint16(raw[6:]))
-	framew := int(binary.LittleEndian.Uint16(raw[8:]))
-	frameh := int(binary.LittleEndian.Uint16(raw[10:]))
-	bpp := binary.LittleEndian.Uint16(raw[12:])
-
-	colorModel := color.RGBAModel
-	if bpp == 16 {
-		colorModel = color.Gray16Model
-	}
-
-	fw, fh := factorPowerOfTwo(nframes)
-	if framew > frameh {
+	fw, fh := factorPowerOfTwo(len(f.frames))
+	if f.framew > f.frameh {
 		fw, fh = fh, fw
+	}
+
+	var colorModel color.Model
+
+	switch f.bpp {
+	case 8:
+		f.initPalette()
+		colorModel = f.palette
+	case 16:
+		colorModel = color.Gray16Model
+	default:
+		colorModel = color.RGBAModel
 	}
 
 	return image.Config{
 		ColorModel: colorModel,
-		Width:      framew * fw,
-		Height:     frameh * fh,
+		Width:      f.framew * fw,
+		Height:     f.frameh * fh,
 	}, nil
 }
 

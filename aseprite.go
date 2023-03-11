@@ -16,7 +16,7 @@ import (
 )
 
 // LoopDirection enumerates all loop animation directions.
-type LoopDirection int
+type LoopDirection uint8
 
 const (
 	Forward LoopDirection = 0
@@ -30,22 +30,17 @@ type Tag struct {
 	// Name is the name of the tag. Can be duplicate.
 	Name string
 
-	// Flags is a bitset of flags.
-	Flags int
-
-	// Repeat specifies how many times to repeat the animation.
-	Repeat int
-
 	// Lo is the first frame in the animation.
-	Lo int
+	Lo uint16
 
 	// Hi is the last frame in the animation.
-	Hi int
-}
+	Hi uint16
 
-// LoopDirection returns the looping direction of the animation.
-func (t *Tag) LoopDirection() LoopDirection {
-	return LoopDirection(t.Flags & 3)
+	// Repeat specifies how many times to repeat the animation.
+	Repeat uint16
+
+	// LoopDirection is the looping direction of the animation.
+	LoopDirection LoopDirection
 }
 
 // Frame represents a single frame in the sprite.
@@ -73,7 +68,7 @@ type Slice struct {
 	// Pivot is the pivot point relative to Bounds.
 	Pivot image.Point
 
-	// Name is name of the slice. Can be duplicate.
+	// Name is the name of the slice. Can be duplicate.
 	Name string
 
 	// Data is optional user data.
@@ -83,7 +78,7 @@ type Slice struct {
 	Color color.Color
 }
 
-// Aseprite holds the results of a parsed .ase or .aseprite file.
+// Aseprite holds the results of a parsed Aseprite image file.
 type Aseprite struct {
 	// Image contains all frame images in a single image.
 	// Frame bounds specify where the frame images are located.

@@ -7,13 +7,9 @@ import (
 	"os"
 	"strings"
 	"testing"
-)
 
-func assertNoError(t *testing.T, err error) {
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+	"github.com/askeladdk/aseprite/internal/require"
+)
 
 func jpgDecode(filename string) (image.Image, error) {
 	f, err := os.Open(filename)
@@ -35,10 +31,10 @@ func jpgEncode(filename string, img image.Image) error {
 
 func TestBlendModes(t *testing.T) {
 	dst, err := jpgDecode("../../testfiles/dst.jpg")
-	assertNoError(t, err)
+	require.NoError(t, err)
 
 	src, err := jpgDecode("../../testfiles/src.jpg")
-	assertNoError(t, err)
+	require.NoError(t, err)
 
 	for i, name := range []string{
 		"Normal",
@@ -65,7 +61,7 @@ func TestBlendModes(t *testing.T) {
 			img := image.NewRGBA(src.Bounds())
 			Blend(img, img.Bounds(), src, image.Point{}, dst, image.Point{}, Modes[i])
 
-			assertNoError(t, jpgEncode(fmt.Sprintf("out_%s.jpg", strings.ToLower(name)), img))
+			require.NoError(t, jpgEncode(fmt.Sprintf("out_%s.jpg", strings.ToLower(name)), img))
 		})
 	}
 }

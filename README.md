@@ -5,9 +5,15 @@
 
 ## Overview
 
-Package aseprite implements a decoder for Aseprite sprite files (`.ase` and `.aseprite` files).
+Package aseprite implements a decoder for [Aseprite sprite files](https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md) (`.ase` and `.aseprite` files).
 
-Layers are flattened, blending modes are applied, and frames are arranged on a single texture atlas. Invisible and reference layers are ignored. Tilesets and external files are not supported.
+Layers are flattened, blending modes are applied, and frames are arranged on a single texture atlas. Invisible and reference layers are ignored.
+
+Limitations:
+- Tilemaps are not supported.
+- External files are not supported.
+- Old aseprite format is not supported.
+- Color profiles are ignored.
 
 ## Install
 
@@ -23,7 +29,7 @@ Use `image.Decode` to decode an aseprite sprite file to an `image.Image`:
 img, imgformat, err := image.Decode("test.aseprite")
 ```
 
-This works fine when loading single images, but if the sprite contains multiple frames they will be organized as a texture atlas. In that case, type cast the image to a `aseprite.Aseprite` to access the metadata:
+This is enough to decode single frame images. Multiple frames are arranged as a texture atlas in a single image. Type cast the image to `aseprite.Aseprite` to access the frame data, as well as other meta data extracted from the sprite file:
 
 ```go
 if imgformat == "aseprite" {
@@ -34,6 +40,10 @@ if imgformat == "aseprite" {
 }
 ```
 
+Read the [documentation](https://pkg.go.dev/github.com/askeladdk/aseprite) for more information about what meta data is extracted.
+
 ## License
 
 Package aseprite is released under the terms of the ISC license.
+
+The internal blend package is released by Guillermo Estrada under the terms of the MIT license: http://github.com/phrozen/blend.
