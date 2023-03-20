@@ -6,8 +6,8 @@ import (
 	"io"
 )
 
-// DecodeAseprite decodes an Aseprite image from r.
-func DecodeAseprite(r io.Reader) (*Aseprite, error) {
+// Read decodes an Aseprite image from r.
+func Read(r io.Reader) (*Aseprite, error) {
 	var spr Aseprite
 	if err := spr.readFrom(r); err != nil {
 		return nil, err
@@ -18,7 +18,7 @@ func DecodeAseprite(r io.Reader) (*Aseprite, error) {
 
 // Decode decodes an Aseprite image from r and returns it as an image.Image.
 func Decode(r io.Reader) (image.Image, error) {
-	return DecodeAseprite(r)
+	return Read(r)
 }
 
 // DecodeConfig returns the color model and dimensions of an Aseprite image

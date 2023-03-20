@@ -26,6 +26,10 @@ go get -u github.com/askeladdk/aseprite
 Use `image.Decode` to decode an aseprite sprite file to an `image.Image`:
 
 ```go
+import (
+    _ "github.com/askeladdk/aseprite"
+)
+
 img, imgformat, err := image.Decode("test.aseprite")
 ```
 
@@ -38,6 +42,12 @@ if imgformat == "aseprite" {
         // etc ...
     }
 }
+```
+
+Alternatively, use the `Read` function to directly decode an image to `aseprite.Aseprite`:
+
+```go
+sprite, err := aseprite.Read(f)
 ```
 
 Read the [documentation](https://pkg.go.dev/github.com/askeladdk/aseprite) for more information about what meta data is extracted.
