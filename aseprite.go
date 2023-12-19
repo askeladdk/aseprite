@@ -78,7 +78,7 @@ type Slice struct {
 	Color color.Color
 }
 
-// Aseprite holds the results of a parsed Aseprite image file.
+// Aseprite holds the results of a parsed Aseprite image [File].
 type Aseprite struct {
 	// Image contains all frame images in a single image.
 	// Frame bounds specify where the frame images are located.
@@ -98,28 +98,17 @@ type Aseprite struct {
 }
 
 func (spr *Aseprite) readFrom(r io.Reader) error {
-	var f file
-
-	if _, err := f.ReadFrom(r); err != nil {
-		return err
-	}
-
-	f.initPalette()
-
-	if err := f.initLayers(); err != nil {
-		return err
-	}
-
-	if err := f.initCels(); err != nil {
+	f, err := NewFile(r)
+	if err != nil {
 		return err
 	}
 
 	var framesr []image.Rectangle
-	spr.Image, framesr = f.buildAtlas()
-	userdata := f.buildUserData()
-	spr.Frames, userdata = f.buildFrames(framesr, userdata)
-	spr.LayerData = f.buildLayerData(userdata)
-	spr.Tags = f.buildTags()
-	spr.Slices = f.buildSlices()
+	spr.Image, framesr = f.BuildAtlas()
+	userdata := f.BuildUserData()
+	spr.Frames, userdata = f.BuildFrames(framesr, userdata)
+	spr.LayerData = f.BuildLayerData(userdata)
+	spr.Tags = f.BuildTags()
+	spr.Slices = f.BuildSlices()
 	return nil
 }

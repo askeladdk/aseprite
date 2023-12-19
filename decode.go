@@ -24,7 +24,7 @@ func Decode(r io.Reader) (image.Image, error) {
 // DecodeConfig returns the color model and dimensions of an Aseprite image
 // without decoding the entire image.
 func DecodeConfig(r io.Reader) (image.Config, error) {
-	var f file
+	var f File
 
 	if _, err := f.ReadFrom(r); err != nil {
 		return image.Config{}, err

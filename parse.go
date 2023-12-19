@@ -45,7 +45,7 @@ func parseUserData(raw []byte) (data []byte, color color.Color) {
 	return
 }
 
-func (f *file) parseChunk2019(raw []byte) {
+func (f *File) parseChunk2019(raw []byte) {
 	entries := binary.LittleEndian.Uint32(raw[0:])
 	lo := binary.LittleEndian.Uint32(raw[4:])
 
@@ -62,7 +62,7 @@ func (f *file) parseChunk2019(raw []byte) {
 	}
 }
 
-func (f *file) initPalette() {
+func (f *File) initPalette() {
 	for _, ch := range f.frames[0].chunks {
 		if ch.typ == 0x2019 {
 			f.parseChunk2019(ch.raw)
@@ -75,7 +75,7 @@ func (f *file) initPalette() {
 	}
 }
 
-func (f *file) initLayers() error {
+func (f *File) initLayers() error {
 	chunks := f.frames[0].chunks
 	for i, ch := range chunks {
 		if ch.typ == 0x2004 {
@@ -90,11 +90,11 @@ func (f *file) initLayers() error {
 				}
 			}
 
-			f.layers = append(f.layers, l)
+			f.Layers = append(f.Layers, l)
 		}
 	}
 
-	nlayers := len(f.layers)
+	nlayers := len(f.Layers)
 	for i := range f.frames {
 		f.frames[i].cels = make([]cel, nlayers)
 	}
@@ -102,7 +102,7 @@ func (f *file) initLayers() error {
 	return nil
 }
 
-func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
+func (f *File) parseChunk2005(frame int, raw []byte) (*cel, error) {
 	layer := binary.LittleEndian.Uint16(raw)
 	xpos := int(binary.LittleEndian.Uint16(raw[2:]))
 	ypos := int(binary.LittleEndian.Uint16(raw[4:]))
@@ -110,18 +110,18 @@ func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 	celtype := binary.LittleEndian.Uint16(raw[7:])
 
 	// invisible layer
-	if f.layers[layer].Flags&1 == 0 {
+	if f.Layers[layer].Flags&1 == 0 {
 		return nil, nil
 	}
 
 	// reference layer
-	if f.layers[layer].Flags&64 != 0 {
+	if f.Layers[layer].Flags&64 != 0 {
 		return nil, nil
 	}
 
 	raw = raw[16:]
 
-	opacity = byte((int(opacity) * int(f.layers[layer].Opacity)) / 255)
+	opacity = byte((int(opacity) * int(f.Layers[layer].Opacity)) / 255)
 
 	switch celtype {
 	case 0: // uncompressed image
@@ -156,7 +156,7 @@ func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 	return &f.frames[frame].cels[layer], nil
 }
 
-func (f *file) initCels() error {
+func (f *File) initCels() error {
 	for i := range f.frames {
 		chunks := f.frames[i].chunks
 		for j, ch := range chunks {
@@ -186,7 +186,7 @@ func parseTag(t *Tag, raw []byte) []byte {
 	return raw[19+len(t.Name):]
 }
 
-func (f *file) buildTags() []Tag {
+func (f *File) BuildTags() []Tag {
 	for _, chunk := range f.frames[0].chunks {
 		if chunk.typ == 0x2018 {
 			raw := chunk.raw
@@ -237,7 +237,7 @@ func parseSlice(s *Slice, flags uint32, raw []byte) []byte {
 	return raw
 }
 
-func (f *file) buildSlices() (slices []Slice) {
+func (f *File) BuildSlices() (slices []Slice) {
 	chunks := f.frames[0].chunks
 	for i, chunk := range chunks {
 		if chunk.typ == 0x2022 {
