@@ -79,14 +79,14 @@ func (f *file) initLayers() error {
 	chunks := f.frames[0].chunks
 	for i, ch := range chunks {
 		if ch.typ == 0x2004 {
-			var l layer
+			var l Layer
 			if err := l.Parse(ch.raw); err != nil {
 				return err
 			}
 
 			if i < len(chunks)-1 {
 				if ch2 := chunks[i+1]; ch2.typ == 0x2020 {
-					l.data, _ = parseUserData(ch2.raw)
+					l.Data, _ = parseUserData(ch2.raw)
 				}
 			}
 
@@ -110,18 +110,18 @@ func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 	celtype := binary.LittleEndian.Uint16(raw[7:])
 
 	// invisible layer
-	if f.layers[layer].flags&1 == 0 {
+	if f.layers[layer].Flags&1 == 0 {
 		return nil, nil
 	}
 
 	// reference layer
-	if f.layers[layer].flags&64 != 0 {
+	if f.layers[layer].Flags&64 != 0 {
 		return nil, nil
 	}
 
 	raw = raw[16:]
 
-	opacity = byte((int(opacity) * int(f.layers[layer].opacity)) / 255)
+	opacity = byte((int(opacity) * int(f.layers[layer].Opacity)) / 255)
 
 	switch celtype {
 	case 0: // uncompressed image
