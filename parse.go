@@ -186,7 +186,7 @@ func parseTag(t *Tag, raw []byte) []byte {
 	return raw[19+len(t.Name):]
 }
 
-func (f *File) BuildTags() []Tag {
+func (f *File) buildTags() []Tag {
 	for _, chunk := range f.frames[0].chunks {
 		if chunk.typ == 0x2018 {
 			raw := chunk.raw
@@ -237,7 +237,7 @@ func parseSlice(s *Slice, flags uint32, raw []byte) []byte {
 	return raw
 }
 
-func (f *File) BuildSlices() (slices []Slice) {
+func (f *File) buildSlices() (slices []Slice) {
 	chunks := f.frames[0].chunks
 	for i, chunk := range chunks {
 		if chunk.typ == 0x2022 {

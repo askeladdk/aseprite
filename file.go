@@ -226,7 +226,7 @@ func (f *File) ReadFrom(r io.Reader) (int64, error) {
 	return fileSize, nil
 }
 
-func (f *File) BuildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
+func (f *File) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	var atlasr image.Rectangle
 	atlasr, framesr = makeAtlasFrames(len(f.frames), f.framew, f.frameh)
 
@@ -273,7 +273,7 @@ func (f *File) BuildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	return
 }
 
-func (f *File) BuildUserData() []byte {
+func (f *File) buildUserData() []byte {
 	n := 0
 
 	for _, l := range f.Layers {
@@ -291,7 +291,7 @@ func (f *File) BuildUserData() []byte {
 	return make([]byte, 0, n)
 }
 
-func (f *File) BuildLayerData(userdata []byte) [][]byte {
+func (f *File) buildLayerData(userdata []byte) [][]byte {
 	ld := make([][]byte, 0, len(f.Layers))
 	for _, l := range f.Layers {
 		if l.Flags&1 != 0 && len(l.Data) > 0 {
@@ -320,7 +320,7 @@ func (f *File) FilterLayers(keep func(l *Layer) bool) {
 	f.Layers = remaining
 }
 
-func (f *File) BuildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame, []byte) {
+func (f *File) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame, []byte) {
 	frames := make([]Frame, len(f.frames))
 
 	for i, fr := range f.frames {

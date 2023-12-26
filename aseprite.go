@@ -104,11 +104,11 @@ func (spr *Aseprite) readFrom(r io.Reader) error {
 	}
 
 	var framesr []image.Rectangle
-	spr.Image, framesr = f.BuildAtlas()
-	userdata := f.BuildUserData()
-	spr.Frames, userdata = f.BuildFrames(framesr, userdata)
-	spr.LayerData = f.BuildLayerData(userdata)
-	spr.Tags = f.BuildTags()
-	spr.Slices = f.BuildSlices()
+	spr.Image, framesr = f.buildAtlas()
+	userdata := f.buildUserData()
+	spr.Frames, userdata = f.buildFrames(framesr, userdata)
+	spr.LayerData = f.buildLayerData(userdata)
+	spr.Tags = f.buildTags()
+	spr.Slices = f.buildSlices()
 	return nil
 }
