@@ -22,7 +22,7 @@ type cel struct {
 	data  []byte
 }
 
-func makeCelImage8(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
+func makeCelImage8(f *File, bounds image.Rectangle, opacity byte, pix []byte) cel {
 	img := image.Paletted{
 		Pix:     pix,
 		Stride:  bounds.Dx(),
@@ -35,7 +35,7 @@ func makeCelImage8(f *file, bounds image.Rectangle, opacity byte, pix []byte) ce
 	return cel{&img, mask, nil}
 }
 
-func makeCelImage16(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
+func makeCelImage16(f *File, bounds image.Rectangle, opacity byte, pix []byte) cel {
 	img := image.Gray16{
 		Pix:    pix,
 		Stride: bounds.Dx() * 2,
@@ -47,7 +47,7 @@ func makeCelImage16(f *file, bounds image.Rectangle, opacity byte, pix []byte) c
 	return cel{&img, mask, nil}
 }
 
-func makeCelImage32(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
+func makeCelImage32(f *File, bounds image.Rectangle, opacity byte, pix []byte) cel {
 	img := image.NRGBA{
 		Pix:    pix,
 		Stride: bounds.Dx() * 4,
@@ -59,20 +59,23 @@ func makeCelImage32(f *file, bounds image.Rectangle, opacity byte, pix []byte) c
 	return cel{&img, mask, nil}
 }
 
-type layer struct {
-	flags     uint16
-	blendMode uint16
-	opacity   byte
-	data      []byte
+type Layer struct {
+	Name      string
+	Flags     uint16
+	BlendMode uint16
+	Opacity   byte
+	Data      []byte
 }
 
-func (l *layer) Parse(raw []byte) error {
+func (l *Layer) Parse(raw []byte) error {
 	if typ := binary.LittleEndian.Uint16(raw[2:]); typ == 2 {
 		return errors.New("tilemap layers not supported")
 	}
-	l.flags = binary.LittleEndian.Uint16(raw)
-	l.blendMode = binary.LittleEndian.Uint16(raw[10:])
-	l.opacity = raw[12]
+	l.Flags = binary.LittleEndian.Uint16(raw)
+	l.BlendMode = binary.LittleEndian.Uint16(raw[10:])
+	l.Opacity = raw[12]
+	// Skip three zero bytes which are reserved for future by specification
+	l.Name = string(raw[16:]) // 12+3=15
 	return nil
 }
 
@@ -128,7 +131,8 @@ func (f *frame) Read(raw []byte) ([]byte, error) {
 	return raw, nil
 }
 
-type file struct {
+// File is a low level representation of data stored in Aseprite format.
+type File struct {
 	framew      int
 	frameh      int
 	flags       uint16
@@ -136,11 +140,32 @@ type file struct {
 	transparent uint8
 	palette     color.Palette
 	frames      []frame
-	layers      []layer
-	makeCel     func(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel
+	Layers      []Layer
+	makeCel     func(f *File, bounds image.Rectangle, opacity byte, pix []byte) cel
 }
 
-func (f *file) ReadFrom(r io.Reader) (int64, error) {
+// NewFile parses [io.Reader] into a low level [File] representation, initializes pallete, layers, and cells.
+func NewFile(r io.Reader) (*File, error) {
+	var f File
+
+	if _, err := f.ReadFrom(r); err != nil {
+		return nil, err
+	}
+
+	f.initPalette()
+
+	if err := f.initLayers(); err != nil {
+		return nil, err
+	}
+
+	if err := f.initCels(); err != nil {
+		return nil, err
+	}
+
+	return &f, nil
+}
+
+func (f *File) ReadFrom(r io.Reader) (int64, error) {
 	var hdr [128]byte
 
 	raw := hdr[:]
@@ -201,7 +226,7 @@ func (f *file) ReadFrom(r io.Reader) (int64, error) {
 	return fileSize, nil
 }
 
-func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
+func (f *File) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	var atlasr image.Rectangle
 	atlasr, framesr = makeAtlasFrames(len(f.frames), f.framew, f.frameh)
 
@@ -232,7 +257,7 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 			sr := src.Bounds()
 			sp := sr.Min
 
-			if mode := f.layers[layer].blendMode; mode > 0 && int(mode) < len(blend.Modes) {
+			if mode := f.Layers[layer].BlendMode; mode > 0 && int(mode) < len(blend.Modes) {
 				draw.Draw(dstblend, framebounds, transparent, image.Point{}, draw.Src)
 				blend.Blend(dstblend, sr.Sub(sp), src, sp, dst, sp, blend.Modes[mode])
 				src = dstblend
@@ -248,12 +273,12 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	return
 }
 
-func (f *file) buildUserData() []byte {
+func (f *File) buildUserData() []byte {
 	n := 0
 
-	for _, l := range f.layers {
-		if l.flags&1 != 0 {
-			n += len(l.data)
+	for _, l := range f.Layers {
+		if l.Flags&1 != 0 {
+			n += len(l.Data)
 		}
 	}
 
@@ -266,19 +291,36 @@ func (f *file) buildUserData() []byte {
 	return make([]byte, 0, n)
 }
 
-func (f *file) buildLayerData(userdata []byte) [][]byte {
-	ld := make([][]byte, 0, len(f.layers))
-	for _, l := range f.layers {
-		if l.flags&1 != 0 && len(l.data) > 0 {
+func (f *File) buildLayerData(userdata []byte) [][]byte {
+	ld := make([][]byte, 0, len(f.Layers))
+	for _, l := range f.Layers {
+		if l.Flags&1 != 0 && len(l.Data) > 0 {
 			ofs := len(userdata)
-			userdata = append(userdata, l.data...)
+			userdata = append(userdata, l.Data...)
 			ld = append(ld, userdata[ofs:])
 		}
 	}
 	return ld
 }
 
-func (f *file) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame, []byte) {
+// FilterLayers eliminates each [Layer] and its associated cell data that does not return `true` from the filtering function.
+func (f *File) FilterLayers(keep func(l *Layer) bool) {
+	remaining := make([]Layer, 0, len(f.Layers))
+	index := 0
+	for _, l := range f.Layers {
+		if keep(&l) {
+			remaining = append(remaining, l)
+			index++
+			continue
+		}
+		for _, fr := range f.frames {
+			fr.cels = append(fr.cels[:index], fr.cels[index+1:]...)
+		}
+	}
+	f.Layers = remaining
+}
+
+func (f *File) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame, []byte) {
 	frames := make([]Frame, len(f.frames))
 
 	for i, fr := range f.frames {

@@ -11,7 +11,6 @@ package aseprite
 import (
 	"image"
 	"image/color"
-	"io"
 	"time"
 )
 
@@ -78,7 +77,7 @@ type Slice struct {
 	Color color.Color
 }
 
-// Aseprite holds the results of a parsed Aseprite image file.
+// Aseprite holds the results of a parsed Aseprite image [File].
 type Aseprite struct {
 	// Image contains all frame images in a single image.
 	// Frame bounds specify where the frame images are located.
@@ -97,29 +96,15 @@ type Aseprite struct {
 	LayerData [][]byte
 }
 
-func (spr *Aseprite) readFrom(r io.Reader) error {
-	var f file
-
-	if _, err := f.ReadFrom(r); err != nil {
-		return err
-	}
-
-	f.initPalette()
-
-	if err := f.initLayers(); err != nil {
-		return err
-	}
-
-	if err := f.initCels(); err != nil {
-		return err
-	}
-
+// New creates an instance of [Aseprite] using raw decoded [File]. Use [NewFile] to decode a reader first.
+func New(raw *File) *Aseprite {
+	spr := &Aseprite{}
 	var framesr []image.Rectangle
-	spr.Image, framesr = f.buildAtlas()
-	userdata := f.buildUserData()
-	spr.Frames, userdata = f.buildFrames(framesr, userdata)
-	spr.LayerData = f.buildLayerData(userdata)
-	spr.Tags = f.buildTags()
-	spr.Slices = f.buildSlices()
-	return nil
+	spr.Image, framesr = raw.buildAtlas()
+	userdata := raw.buildUserData()
+	spr.Frames, userdata = raw.buildFrames(framesr, userdata)
+	spr.LayerData = raw.buildLayerData(userdata)
+	spr.Tags = raw.buildTags()
+	spr.Slices = raw.buildSlices()
+	return spr
 }

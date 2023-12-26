@@ -8,12 +8,11 @@ import (
 
 // Read decodes an Aseprite image from r.
 func Read(r io.Reader) (*Aseprite, error) {
-	var spr Aseprite
-	if err := spr.readFrom(r); err != nil {
+	f, err := NewFile(r)
+	if err != nil {
 		return nil, err
 	}
-
-	return &spr, nil
+	return New(f), nil
 }
 
 // Decode decodes an Aseprite image from r and returns it as an image.Image.
@@ -24,7 +23,7 @@ func Decode(r io.Reader) (image.Image, error) {
 // DecodeConfig returns the color model and dimensions of an Aseprite image
 // without decoding the entire image.
 func DecodeConfig(r io.Reader) (image.Config, error) {
-	var f file
+	var f File
 
 	if _, err := f.ReadFrom(r); err != nil {
 		return image.Config{}, err
