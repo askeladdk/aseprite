@@ -11,7 +11,6 @@ package aseprite
 import (
 	"image"
 	"image/color"
-	"io"
 	"time"
 )
 
@@ -97,18 +96,15 @@ type Aseprite struct {
 	LayerData [][]byte
 }
 
-func (spr *Aseprite) readFrom(r io.Reader) error {
-	f, err := NewFile(r)
-	if err != nil {
-		return err
-	}
-
+// New creates an instance of [Aseprite] using raw decoded [File]. Use [NewFile] to decode a reader first.
+func New(raw *File) *Aseprite {
+	spr := &Aseprite{}
 	var framesr []image.Rectangle
-	spr.Image, framesr = f.buildAtlas()
-	userdata := f.buildUserData()
-	spr.Frames, userdata = f.buildFrames(framesr, userdata)
-	spr.LayerData = f.buildLayerData(userdata)
-	spr.Tags = f.buildTags()
-	spr.Slices = f.buildSlices()
-	return nil
+	spr.Image, framesr = raw.buildAtlas()
+	userdata := raw.buildUserData()
+	spr.Frames, userdata = raw.buildFrames(framesr, userdata)
+	spr.LayerData = raw.buildLayerData(userdata)
+	spr.Tags = raw.buildTags()
+	spr.Slices = raw.buildSlices()
+	return spr
 }
