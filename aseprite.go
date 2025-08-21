@@ -59,6 +59,9 @@ type Frame struct {
 
 // Slice represents a single slice.
 type Slice struct {
+	// Name is the name of the slice. Can be duplicate.
+	Name string
+
 	// Bounds is the bounds of the image in the texture atlas.
 	Bounds image.Rectangle
 
@@ -68,14 +71,28 @@ type Slice struct {
 	// Pivot is the pivot point relative to Bounds.
 	Pivot image.Point
 
-	// Name is the name of the slice. Can be duplicate.
-	Name string
+	// // Keys is the slice keys. Each slice has its own keyframes
+	Keys []SliceKeyFrame
 
 	// Data is optional user data.
 	Data []byte
 
 	// Color is the slice color.
 	Color color.Color
+}
+
+type SliceKeyFrame struct {
+	// FrameIndex is the index of the frame associated to this key frame
+	FrameIndex int
+
+	// Bounds is the bounds of the image in the texture atlas.
+	Bounds image.Rectangle
+
+	// Center is the 9-slices center relative to Bounds.
+	Center image.Rectangle
+
+	// Pivot is the pivot point relative to Bounds.
+	Pivot image.Point
 }
 
 // Aseprite holds the results of a parsed Aseprite image file.
