@@ -62,11 +62,90 @@ func (f *file) parseChunk2019(raw []byte) {
 	}
 }
 
+// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#old-palette-chunk-0x0011
+func (f *file) parseChunk0011(raw []byte) {
+	packets := binary.LittleEndian.Uint16(raw)
+	raw = raw[2:]
+
+	currentIndex := 0
+
+	for i := 0; i < int(packets); i++ {
+		skip := int(raw[0])
+		currentIndex += skip
+
+		n := int(raw[1])
+		if n == 0 {
+			n = 256
+		}
+		raw = raw[2:]
+
+		for j := 0; j < n && currentIndex < len(f.palette); j++ {
+			f.palette[currentIndex] = color.NRGBA{
+				R: raw[0] * 4,
+				G: raw[1] * 4,
+				B: raw[2] * 4,
+				A: 255,
+			}
+			raw = raw[3:]
+			currentIndex++
+		}
+	}
+}
+
+// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#old-palette-chunk-0x0004
+func (f *file) parseChunk0004(raw []byte) {
+	packets := binary.LittleEndian.Uint16(raw)
+	raw = raw[2:]
+
+	currentIndex := 0
+
+	for i := 0; i < int(packets); i++ {
+		skip := int(raw[0])
+		currentIndex += skip
+
+		n := int(raw[1])
+		if n == 0 {
+			n = 256
+		}
+		raw = raw[2:]
+
+		for j := 0; j < n && currentIndex < len(f.palette); j++ {
+			f.palette[currentIndex] = color.NRGBA{
+				R: raw[0],
+				G: raw[1],
+				B: raw[2],
+				A: 255,
+			}
+			raw = raw[3:]
+			currentIndex++
+		}
+	}
+}
+
 func (f *file) initPalette() {
+	var chunk0004 []byte
+	var chunk0011 []byte
+	found2019 := false
+
 	for _, ch := range f.frames[0].chunks {
 		if ch.typ == 0x2019 {
 			f.parseChunk2019(ch.raw)
+			found2019 = true
 			break
+		}
+		if ch.typ == 0x0004 {
+			chunk0004 = ch.raw
+		}
+		if ch.typ == 0x0011 {
+			chunk0011 = ch.raw
+		}
+	}
+
+	if !found2019 {
+		if chunk0004 != nil {
+			f.parseChunk0004(chunk0004)
+		} else if chunk0011 != nil {
+			f.parseChunk0011(chunk0011)
 		}
 	}
 
