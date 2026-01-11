@@ -31,6 +31,13 @@ func TestDecode(t *testing.T) {
 		Tags     int
 	}{
 		{
+			Name:     "paletted_index_error",
+			Filename: "./testfiles/index_error.aseprite",
+			Outfile:  "index_error.png",
+			Frames:   1,
+			Tags:     0,
+		},
+		{
 			Name:     "paletted",
 			Filename: "./testfiles/slime_paletted.aseprite",
 			Outfile:  "slime_paletted.png",
