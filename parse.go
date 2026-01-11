@@ -150,7 +150,7 @@ func (f *file) initPalette() {
 	}
 
 	if f.flags&1 != 0 {
-		f.palette[f.transparent] = color.Transparent
+		f.palette[f.transparentPaletteIndex] = color.Transparent
 	}
 }
 
@@ -208,7 +208,7 @@ func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 		height := int(binary.LittleEndian.Uint16(raw[2:]))
 		pix := raw[4:]
 		bounds := image.Rect(xpos, ypos, xpos+width, ypos+height)
-		cel := f.makeCel(f, bounds, opacity, pix)
+		cel := f.makeCelFunc(f, bounds, opacity, pix)
 		f.frames[frame].cels[layer] = cel
 	case 1: // linked cel
 		srcFrame := int(binary.LittleEndian.Uint16(raw))
@@ -226,7 +226,7 @@ func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 			return nil, err
 		}
 		bounds := image.Rect(xpos, ypos, xpos+width, ypos+height)
-		cel := f.makeCel(f, bounds, opacity, pix)
+		cel := f.makeCelFunc(f, bounds, opacity, pix)
 		f.frames[frame].cels[layer] = cel
 	default:
 		return nil, errors.New("unsupported cel type")

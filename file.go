@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -23,16 +24,16 @@ type cel struct {
 }
 
 func makeCelImage8(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
-	img := image.Paletted{
-		Pix:     pix,
-		Stride:  bounds.Dx(),
-		Rect:    bounds,
-		Palette: f.palette,
+	return cel{
+		image: &image.Paletted{
+			Pix:     pix,
+			Stride:  bounds.Dx(),
+			Rect:    bounds,
+			Palette: f.palette,
+		},
+		mask: image.Uniform{color.Alpha{opacity}},
+		data: nil,
 	}
-
-	mask := image.Uniform{color.Alpha{opacity}}
-
-	return cel{&img, mask, nil}
 }
 
 func makeCelImage16(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
@@ -129,15 +130,15 @@ func (f *frame) Read(raw []byte) ([]byte, error) {
 }
 
 type file struct {
-	framew      int
-	frameh      int
-	flags       uint16
-	bpp         uint16
-	transparent uint8
-	palette     color.Palette
-	frames      []frame
-	layers      []layer
-	makeCel     func(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel
+	frameWidth              int
+	frameHeight             int
+	flags                   uint16
+	bpp                     uint16
+	transparentPaletteIndex uint8
+	palette                 color.Palette
+	frames                  []frame
+	layers                  []layer
+	makeCelFunc             func(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel
 }
 
 func (f *file) ReadFrom(r io.Reader) (int64, error) {
@@ -160,18 +161,19 @@ func (f *file) ReadFrom(r io.Reader) (int64, error) {
 	f.bpp = binary.LittleEndian.Uint16(raw[12:])
 	f.flags = binary.LittleEndian.Uint16(raw[14:])
 	f.frames = make([]frame, 0, binary.LittleEndian.Uint16(raw[6:]))
-	f.framew = int(binary.LittleEndian.Uint16(raw[8:]))
-	f.frameh = int(binary.LittleEndian.Uint16(raw[10:]))
+	f.frameWidth = int(binary.LittleEndian.Uint16(raw[8:]))
+	f.frameHeight = int(binary.LittleEndian.Uint16(raw[10:]))
 	f.palette = make(color.Palette, binary.LittleEndian.Uint16(raw[32:]))
-	f.transparent = raw[28]
+	f.transparentPaletteIndex = raw[28]
+	fmt.Println(f.transparentPaletteIndex)
 
 	switch f.bpp {
 	case 8:
-		f.makeCel = makeCelImage8
+		f.makeCelFunc = makeCelImage8
 	case 16:
-		f.makeCel = makeCelImage16
+		f.makeCelFunc = makeCelImage16
 	case 32:
-		f.makeCel = makeCelImage32
+		f.makeCelFunc = makeCelImage32
 	default:
 		return 0, errors.New("invalid color depth")
 	}
@@ -179,7 +181,7 @@ func (f *file) ReadFrom(r io.Reader) (int64, error) {
 	for i := range f.palette {
 		f.palette[i] = color.Black
 	}
-	f.palette[f.transparent] = color.Transparent
+	f.palette[f.transparentPaletteIndex] = color.Transparent
 
 	fileSize := int64(binary.LittleEndian.Uint32(raw))
 	raw = make([]byte, fileSize-128)
@@ -201,20 +203,20 @@ func (f *file) ReadFrom(r io.Reader) (int64, error) {
 	return fileSize, nil
 }
 
-func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
-	var atlasr image.Rectangle
-	atlasr, framesr = makeAtlasFrames(len(f.frames), f.framew, f.frameh)
+func (f *file) buildAtlas() (atlas draw.Image, framesRectangles []image.Rectangle) {
+	var atlasRectangle image.Rectangle
+	atlasRectangle, framesRectangles = getBounds(len(f.frames), f.frameWidth, f.frameHeight)
 
 	switch f.bpp {
 	case 8:
-		atlas = image.NewPaletted(atlasr, f.palette)
+		atlas = image.NewPaletted(atlasRectangle, f.palette)
 	case 16:
-		atlas = image.NewGray16(atlasr)
+		atlas = image.NewGray16(atlasRectangle)
 	default:
-		atlas = image.NewRGBA(atlasr)
+		atlas = image.NewRGBA(atlasRectangle)
 	}
 
-	framebounds := image.Rect(0, 0, f.framew, f.frameh)
+	framebounds := image.Rect(0, 0, f.frameWidth, f.frameHeight)
 
 	dstblend := image.NewRGBA(framebounds)
 	dst := image.NewRGBA(framebounds)
@@ -228,21 +230,31 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 				continue
 			}
 
-			src := c.image
-			sr := src.Bounds()
-			sp := sr.Min
+			srcImage := c.image
+			srcBounds := srcImage.Bounds()
+			srcBoundsMin := srcBounds.Min
+
+			// Correction to avoid palette index errors if a color has been deleted from the Aseprite palette.
+			if imgPaletted, ok := srcImage.(*image.Paletted); ok {
+				for i := range imgPaletted.Pix {
+					if int(imgPaletted.Pix[i]) >= len(f.palette) {
+						// Assign a transparent index if the index is outside the palette range.
+						imgPaletted.Pix[i] = f.transparentPaletteIndex
+					}
+				}
+			}
 
 			if mode := f.layers[layer].blendMode; mode > 0 && int(mode) < len(blend.Modes) {
 				draw.Draw(dstblend, framebounds, transparent, image.Point{}, draw.Src)
-				blend.Blend(dstblend, sr.Sub(sp), src, sp, dst, sp, blend.Modes[mode])
-				src = dstblend
-				sp = image.Point{}
+				blend.Blend(dstblend, srcBounds.Sub(srcBoundsMin), srcImage, srcBoundsMin, dst, srcBoundsMin, blend.Modes[mode])
+				srcImage = dstblend
+				srcBoundsMin = image.Point{}
 			}
 
-			draw.DrawMask(dst, sr, src, sp, &c.mask, image.Point{}, draw.Over)
+			draw.DrawMask(dst, srcBounds, srcImage, srcBoundsMin, &c.mask, image.Point{}, draw.Over)
 		}
 
-		draw.Draw(atlas, framesr[i], dst, image.Point{}, draw.Src)
+		draw.Draw(atlas, framesRectangles[i], dst, image.Point{}, draw.Src)
 	}
 
 	return
@@ -297,17 +309,17 @@ func (f *file) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame,
 	return frames, userdata
 }
 
-func makeAtlasFrames(nframes, framew, frameh int) (atlasr image.Rectangle, framesr []image.Rectangle) {
+func getBounds(nframes, framew, frameh int) (atlasRect image.Rectangle, framesRects []image.Rectangle) {
 	fw, fh := factorPowerOfTwo(nframes)
 	if framew > frameh {
 		fw, fh = fh, fw
 	}
 
-	atlasr = image.Rect(0, 0, fw*framew, fh*frameh)
+	atlasRect = image.Rect(0, 0, fw*framew, fh*frameh)
 
 	for i := 0; i < nframes; i++ {
 		x, y := i%fw, i/fw
-		framesr = append(framesr, image.Rectangle{
+		framesRects = append(framesRects, image.Rectangle{
 			Min: image.Pt(x*framew, y*frameh),
 			Max: image.Pt((x+1)*framew, (y+1)*frameh),
 		})

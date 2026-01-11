@@ -31,7 +31,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 	}
 
 	fw, fh := factorPowerOfTwo(len(f.frames))
-	if f.framew > f.frameh {
+	if f.frameWidth > f.frameHeight {
 		fw, fh = fh, fw
 	}
 
@@ -49,8 +49,8 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 
 	return image.Config{
 		ColorModel: colorModel,
-		Width:      f.framew * fw,
-		Height:     f.frameh * fh,
+		Width:      f.frameWidth * fw,
+		Height:     f.frameHeight * fh,
 	}, nil
 }
 
