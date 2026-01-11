@@ -36,15 +36,28 @@ func makeCelImage8(f *file, bounds image.Rectangle, opacity byte, pix []byte) ce
 }
 
 func makeCelImage16(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
-	img := image.Gray16{
-		Pix:    pix,
-		Stride: bounds.Dx() * 2,
-		Rect:   bounds,
+	img := image.NewNRGBA(bounds)
+
+	// 16 bpp grayscale+alpha -> NRGBA
+	stride := bounds.Dx() * 2
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			i := (y-bounds.Min.Y)*stride + (x-bounds.Min.X)*2
+			grayValue := pix[i]    // 8-bit grey
+			alphaValue := pix[i+1] // 8-bit alpha
+
+			finalAlpha := uint16(alphaValue) * uint16(opacity) / 255
+
+			img.SetNRGBA(x, y, color.NRGBA{
+				R: grayValue,
+				G: grayValue,
+				B: grayValue,
+				A: byte(finalAlpha),
+			})
+		}
 	}
-
 	mask := image.Uniform{color.Alpha{opacity}}
-
-	return cel{&img, mask, nil}
+	return cel{img, mask, nil}
 }
 
 func makeCelImage32(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
@@ -209,7 +222,7 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	case 8:
 		atlas = image.NewPaletted(atlasr, f.palette)
 	case 16:
-		atlas = image.NewGray16(atlasr)
+		atlas = image.NewNRGBA(atlasr)
 	default:
 		atlas = image.NewRGBA(atlasr)
 	}
