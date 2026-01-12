@@ -232,6 +232,16 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 			sr := src.Bounds()
 			sp := sr.Min
 
+			// Correction to avoid palette index errors if a color has been deleted from the Aseprite palette.
+			if imgPaletted, ok := src.(*image.Paletted); ok {
+				for i := range imgPaletted.Pix {
+					if int(imgPaletted.Pix[i]) >= len(f.palette) {
+						// Assign a transparent index if the index is outside the palette range.
+						imgPaletted.Pix[i] = f.transparent
+					}
+				}
+			}
+
 			if mode := f.layers[layer].blendMode; mode > 0 && int(mode) < len(blend.Modes) {
 				draw.Draw(dstblend, framebounds, transparent, image.Point{}, draw.Src)
 				blend.Blend(dstblend, sr.Sub(sp), src, sp, dst, sp, blend.Modes[mode])
