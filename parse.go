@@ -283,12 +283,15 @@ func (f *file) buildTags() []Tag {
 }
 
 func parseSlice(s *Slice, flags uint32, raw []byte) []byte {
-	// framenum := binary.LittleEndian.Uint32(raw)
+	var key SliceFrame
+
 	x := int32(binary.LittleEndian.Uint32(raw[4:]))
 	y := int32(binary.LittleEndian.Uint32(raw[8:]))
 	w := binary.LittleEndian.Uint32(raw[12:])
 	h := binary.LittleEndian.Uint32(raw[16:])
 	raw = raw[20:]
+
+	key.Bounds = image.Rect(int(x), int(y), int(x)+int(w), int(y)+int(h))
 
 	var cx, cy int32
 	var cw, ch uint32
@@ -299,6 +302,8 @@ func parseSlice(s *Slice, flags uint32, raw []byte) []byte {
 		cw = binary.LittleEndian.Uint32(raw[8:])
 		ch = binary.LittleEndian.Uint32(raw[12:])
 		raw = raw[16:]
+
+		key.Center = image.Rect(int(cx), int(cy), int(cx)+int(cw), int(cy)+int(ch))
 	}
 
 	var px, py int32
@@ -307,11 +312,10 @@ func parseSlice(s *Slice, flags uint32, raw []byte) []byte {
 		px = int32(binary.LittleEndian.Uint32(raw))
 		py = int32(binary.LittleEndian.Uint32(raw[4:]))
 		raw = raw[8:]
+		key.Pivot = image.Pt(int(px), int(py))
 	}
 
-	s.Bounds = image.Rect(int(x), int(y), int(x)+int(w), int(y)+int(h))
-	s.Center = image.Rect(int(cx), int(cy), int(cx)+int(cw), int(cy)+int(ch))
-	s.Pivot = image.Pt(int(px), int(py))
+	s.Frames = append(s.Frames, key)
 
 	return raw
 }
@@ -322,18 +326,25 @@ func (f *file) buildSlices() (slices []Slice) {
 		if chunk.typ == 0x2022 {
 			ofs := len(slices)
 			raw := chunk.raw
-			nslices := int(binary.LittleEndian.Uint32(raw))
+
+			nKeysForSlice := int(binary.LittleEndian.Uint32(raw))
 			flags := binary.LittleEndian.Uint32(raw[4:])
 			name := parseString(raw[12:])
 
-			// parse each slice
 			raw = raw[14+len(name):]
-			for i := 0; len(raw) > 0 && i < nslices; i++ {
-				var s Slice
-				s.Name = name
+
+			var s Slice
+			s.Name = name
+			frameIndices := make([]int, 0, nKeysForSlice)
+
+			// parse each slice
+			for i := 0; len(raw) > 0 && i < nKeysForSlice; i++ {
+				frameIdx := int(binary.LittleEndian.Uint32(raw))
+				frameIndices = append(frameIndices, frameIdx)
 				raw = parseSlice(&s, flags, raw)
-				slices = append(slices, s)
 			}
+
+			slices = append(slices, s)
 
 			// check for user data chunk
 			if i < len(chunks)-1 {
@@ -341,13 +352,32 @@ func (f *file) buildSlices() (slices []Slice) {
 					data, col := parseUserData(ud.raw)
 					data = append([]byte{}, data...) // copy
 					for j := ofs; j < len(slices); j++ {
-						slices[j].Data = data
+						slices[j].UserData = data
 						slices[j].Color = col
 					}
 				}
 			}
+			expandSliceKey(&slices[len(slices)-1], len(f.frames), frameIndices)
 		}
 	}
 
 	return
+}
+
+// Expand sparse keys across all frames (first key fills backward, rest forward).
+func expandSliceKey(slice *Slice, lenFrames int, frameIndices []int) {
+	if len(slice.Frames) == lenFrames {
+		return
+	}
+	expandedKeys := make([]SliceFrame, lenFrames)
+	keyIdx := 0
+	current := slice.Frames[0]
+	for frameIdx := range expandedKeys {
+		if keyIdx < len(slice.Frames) && frameIndices[keyIdx] == frameIdx {
+			current = slice.Frames[keyIdx]
+			keyIdx++
+		}
+		expandedKeys[frameIdx] = current
+	}
+	slice.Frames = expandedKeys
 }
